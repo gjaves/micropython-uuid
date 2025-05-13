@@ -1,0 +1,61 @@
+name: Mirror uuid from pycopy-lib with version bump
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout destination repo
+        uses: actions/checkout@v4
+
+      - name: Checkout source repo (pycopy-lib)
+        uses: actions/checkout@v4
+        with:
+          repository: gjaves/pycopy-lib
+          path: pycopy-lib
+          fetch-depth: 1
+
+      - name: Copy uuid module
+        run: |
+          rm -rf uuid
+          mkdir -p uuid
+          cp -r pycopy-lib/uuid/* uuid/
+
+      - name: Check for code changes and bump version
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+
+          git add uuid
+          if git diff --cached --quiet; then
+            echo "No changes to uuid; skipping version bump."
+            exit 0
+          fi
+
+          # Bump manifest.py version (assumes semantic versioning in form x.y.z)
+          if [ -f uuid/manifest.py ]; then
+            VERSION_LINE=$(grep -Eo "[0-9]+\.[0-9]+\.[0-9]+" uuid/manifest.py | head -n1)
+            if [ -z "$VERSION_LINE" ]; then
+              echo "No version found in manifest.py"
+              exit 1
+            fi
+
+            MAJOR=$(echo $VERSION_LINE | cut -d. -f1)
+            MINOR=$(echo $VERSION_LINE | cut -d. -f2)
+            PATCH=$(echo $VERSION_LINE | cut -d. -f3)
+
+            NEW_PATCH=$((PATCH + 1))
+            NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+
+            echo "Bumping version: $VERSION_LINE → $NEW_VERSION"
+            sed -i "s/$VERSION_LINE/$NEW_VERSION/" uuid/manifest.py
+          fi
+
+          git add uuid
+          git commit -m "Sync uuid from pycopy-lib + bump version"
+          git push
