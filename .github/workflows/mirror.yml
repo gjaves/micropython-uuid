@@ -55,7 +55,9 @@ jobs:
             echo "Bumping version: $VERSION_LINE → $NEW_VERSION"
             sed -i "s/$VERSION_LINE/$NEW_VERSION/" uuid/manifest.py
           fi
-
+         
+          git remote add origin https://x-access-token:${{ secrets.TARGET_REPO_PAT }}@github.com/gjaves/micropython-uuid.git
           git add uuid
           git commit -m "Sync uuid from pycopy-lib + bump version"
-          git push
+          git push -f origin master
+          
